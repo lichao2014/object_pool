@@ -1,17 +1,35 @@
-#include <string>
 #include "object_pool.h"
 
 
+class A : public std::string
+{
+public:
+    A()
+    {
+        throw 1;
+    }
+
+    A(int) {}
+};
+
 int main()
 {
-    auto pool = std::make_shared<ObjectPool<std::string>>();
+    auto pool = std::make_shared<ObjectPool<A>>();
 
-    using namespace std::string_literals;
-    auto a = pool->get_unique("a"s);
+    auto a = pool->getUnique(1);
     a.reset();
 
-    auto b = pool->get_shared("b");
-    auto c = pool->get_unique("c");
+    try
+    {
+        auto b = pool->getShared();
+    }
+    catch (...)
+    {
+        //nop
+    }
+
+    auto c = pool->getShared(7);
+    auto d = pool->getUnique(2);
     //b.reset();
     //c.reset();
 

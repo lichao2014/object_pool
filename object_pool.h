@@ -1,5 +1,5 @@
-#ifndef _OBJECT_POOL_H_INCLUDED_
-#define _OBJECT_POOL_H_INCLUDED_
+#ifndef _OBJECT_POOL_H_INCLUDED
+#define _OBJECT_POOL_H_INCLUDED
 
 
 #include <memory>
@@ -13,27 +13,18 @@ class ObjectPool
 {
 public:
     using Base = std::vector<std::unique_ptr<Storage>>;
-    using Deleter = std::function<void(T *)>;
 
     ObjectPool() = default;
 
     template<typename...Args>
-    std::unique_ptr<T, Deleter> get_unique(Args&&...args)
+    std::unique_ptr<T, std::function<void(T *)>> getUnique(Args&&...args)
     {
-        std::unique_ptr<Storage> block;
+        auto storage = resolveStorage();
 
-        if (empty()) {
-            block.reset(new Storage);
-        }
-        else {
-            block.reset(this->back().release());
-            this->pop_back();
-        }
-
-        new (block.get()) T(std::forward<Args>(args)...);
+        new (storage.get()) T(std::forward<Args>(args)...);
 
         return {
-            reinterpret_cast<T *>(block.release()),
+            reinterpret_cast<T *>(storage.release()),
             [pool = this->shared_from_this()](T *p) {
                 p->~T();
                 pool->emplace_back(reinterpret_cast<Storage *>(p));
@@ -42,17 +33,37 @@ public:
     }
 
     template<typename...Args>
-    std::shared_ptr<T> get_shared(Args&&...args)
+    std::shared_ptr<T> getShared(Args&&...args)
     {
-        return get_unique(std::forward<Args>(args)...);
+        return getUnique(std::forward<Args>(args)...);
     }
 
     using Base::empty;
     using Base::size;
     using Base::clear;
+
+private:
+    std::unique_ptr<Storage, std::function<void(Storage *)>> resolveStorage() noexcept
+    {
+        Storage *storage = nullptr;
+
+        if (empty()) {
+            storage = new (std::nothrow) Storage;
+        }
+        else {
+            storage = this->back().release();
+            this->pop_back();
+        }
+
+        return {
+            storage,
+            [this](Storage *p) {
+                this->emplace_back(p);
+            }
+        };
+    }
+
 };
 
-
-
-#endif // _OBJECT_POOL_H_INCLUDED_
+#endif // _OBJECT_POOL_H_INCLUDED
 
