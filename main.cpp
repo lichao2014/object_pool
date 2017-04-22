@@ -1,16 +1,21 @@
+#include <string>
 #include "object_pool.h"
+
 
 int main()
 {
-    ObjectPool<std::string> p;
+    auto pool = std::make_shared<ObjectPool<std::string>>();
 
-    auto a = p.get_unique("a");
+    using namespace std::string_literals;
+    auto a = pool->get_unique("a"s);
     a.reset();
 
-    auto b = p.get_shared("b");
-    auto c = p.get_unique("c");
-    b.reset();
-    c.reset();
+    auto b = pool->get_shared("b");
+    auto c = pool->get_unique("c");
+    //b.reset();
+    //c.reset();
+
+    pool.reset();
 
 
     return 0;

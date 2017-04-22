@@ -7,7 +7,9 @@
 #include <vector>
 
 template<typename T, typename Storage = std::aligned_storage_t<sizeof(T)>>
-class ObjectPool : private std::vector<std::unique_ptr<Storage>>
+class ObjectPool 
+    : public std::enable_shared_from_this<ObjectPool<T, Storage>>
+    , private std::vector<std::unique_ptr<Storage>>
 {
 public:
     using Base = std::vector<std::unique_ptr<Storage>>;
@@ -32,9 +34,9 @@ public:
 
         return {
             reinterpret_cast<T *>(block.release()),
-            [this](T *p) {
+            [pool = shared_from_this()](T *p) {
                 p->~T();
-                this->emplace_back(reinterpret_cast<Storage *>(p));
+                pool->emplace_back(reinterpret_cast<Storage *>(p));
             }
         };
     }
