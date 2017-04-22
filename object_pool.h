@@ -22,7 +22,7 @@ public:
     {
         std::unique_ptr<Storage> block;
 
-        if (this->empty()) {
+        if (empty()) {
             block.reset(new Storage);
         }
         else {
@@ -34,7 +34,7 @@ public:
 
         return {
             reinterpret_cast<T *>(block.release()),
-            [pool = shared_from_this()](T *p) {
+            [pool = this->shared_from_this()](T *p) {
                 p->~T();
                 pool->emplace_back(reinterpret_cast<Storage *>(p));
             }
