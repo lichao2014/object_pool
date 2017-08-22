@@ -43,12 +43,12 @@ public:
     using Base::clear;
 
 private:
-    std::unique_ptr<Storage, std::function<void(Storage *)>> resolveStorage() noexcept
+    std::unique_ptr<Storage, std::function<void(Storage *)>> resolveStorage()
     {
         Storage *storage = nullptr;
 
         if (empty()) {
-            storage = new (std::nothrow) Storage;
+            storage = new Storage;
         }
         else {
             storage = this->back().release();
