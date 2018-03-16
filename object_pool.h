@@ -1,25 +1,28 @@
 #ifndef _OBJECT_POOL_H_INCLUDED
 #define _OBJECT_POOL_H_INCLUDED
 
-
 #include <memory>
 #include <functional>
 #include <vector>
 
+template<typename T>
+using UniquePtr = std::unique_ptr<T, std::function<void(T *)>>;
+
 template<typename T, typename Storage = std::aligned_storage_t<sizeof(T)>>
 class ObjectPool 
     : public std::enable_shared_from_this<ObjectPool<T, Storage>>
-    , private std::vector<std::unique_ptr<Storage>>
-{
+    , private std::vector<std::unique_ptr<Storage>> {
 public:
-    using Base = std::vector<std::unique_ptr<Storage>>;
+    using Super = std::vector<std::unique_ptr<Storage>>;
+    using Self = ObjectPool<T, Storage>;
 
-    ObjectPool() = default;
+    static std::shared_ptr<Self> Create() {
+        return { new Self, [](Self *p) { delete p; } };
+    }
 
     template<typename...Args>
-    std::unique_ptr<T, std::function<void(T *)>> getUnique(Args&&...args)
-    {
-        auto storage = resolveStorage();
+    UniquePtr<T> ResolveUnique(Args&&...args) {
+        auto storage = ResolveStorage();
 
         new (storage.get()) T(std::forward<Args>(args)...);
 
@@ -33,36 +36,34 @@ public:
     }
 
     template<typename...Args>
-    std::shared_ptr<T> getShared(Args&&...args)
-    {
-        return getUnique(std::forward<Args>(args)...);
+    std::shared_ptr<T> ResolveShared(Args&&...args) {
+        return ResolveUnique(std::forward<Args>(args)...);
     }
 
-    using Base::empty;
-    using Base::size;
-    using Base::clear;
-
+    using Super::empty;
+    using Super::size;
+    using Super::clear;
 private:
-    std::unique_ptr<Storage, std::function<void(Storage *)>> resolveStorage()
-    {
-        Storage *storage = nullptr;
+    ObjectPool() = default;
+    ~ObjectPool() = default;
 
-        if (empty()) {
-            storage = new Storage;
-        }
-        else {
-            storage = this->back().release();
+    UniquePtr<Storage> ResolveStorage() {
+        std::unique_ptr<Storage> storage;
+
+        if (this->empty()) {
+            storage.reset(new Storage);
+        } else {
+            storage = std::move(this->back());
             this->pop_back();
         }
 
         return {
-            storage,
+            storage.release(),
             [this](Storage *p) {
                 this->emplace_back(p);
             }
         };
     }
-
 };
 
 #endif // _OBJECT_POOL_H_INCLUDED
